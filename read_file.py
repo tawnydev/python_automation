@@ -1,6 +1,12 @@
 import pandas as pd
 import requests
 
+url = "http://localhost:8080"
+customer_endpoint = "/customers"
+hotel_endpoint = "/hotels"
+reservation_endpoint = "/reservations"
+
+
 ########## functions ##########
 def findCustomer(firstname, lastname, list):
     for c in list:
@@ -8,10 +14,26 @@ def findCustomer(firstname, lastname, list):
             return True
     return False
 
+
+def findHotel(name, list):
+    for h in list:
+        if h["name"] == name:
+            return True
+    return False
+
+
+def findReservation(firstname, lastname, hotel, chambre, list):
+    for r in list:
+        if r["firstname"] == firstname and r["lastname"] == lastname and r["hotel"] == hotel and r[
+            "chambre"] == chambre:
+            return True
+    return False
+
+
 ########## script ##########
 # GET DATA FROM API
 print("1) Get Customers")
-api_customers = requests.get("http://localhost:8080/customers")
+api_customers = requests.get(url + customer_endpoint)
 customers_list = []
 
 if api_customers:
@@ -19,18 +41,58 @@ if api_customers:
     customers_list = api_customers.json()
 else:
     raise Exception(f"Non-success status code: {api_customers.status_code}")
+print("2) Get Hotels")
+api_hotels = requests.get(url + hotel_endpoint)
+hotels_list = []
+
+if api_hotels:
+    print("Get Hotels => Success!")
+    hotels_list = api_hotels.json()
+else:
+    raise Exception(f"Non-success status code: {api_hotels.status_code}")
+print("3) Get Reservations")
+api_reservations = requests.get(url + reservation_endpoint)
+reservations_list = []
+
+if api_reservations:
+    print("Get Reservations => Success!")
+    reservations_list = api_reservations.json()
+else:
+    raise Exception(f"Non-success status code: {api_reservations.status_code}")
 
 # READ FILE
-print("2) Read file")
+print("4) Read file")
 customers_file = pd.read_excel("customers.xlsx")
-#print("nom colonnes="+str(customers_file.head(0)))
-#print(customers_file["hotel"])
-#print(customers_file["hotel"].shape)
 
 for ind in customers_file.index:
-    print(customers_file['customer firstname'][ind], customers_file['customer lastname'][ind])
-    if findCustomer(customers_file['customer firstname'][ind],customers_file['customer lastname'][ind], customers_list):
-        print(customers_file['customer firstname'][ind]+" trouve!")
+    # customer process
+    firstname_index = customers_file['customer firstname'][ind]
+    lastname_index = customers_file['customer lastname'][ind]
+    if findCustomer(firstname_index, lastname_index, customers_list):
+        print(firstname_index + " trouve!")
     else:
-        print(customers_file['customer firstname'][ind]+" non trouve!")
-
+        print(firstname_index + " non trouve!")
+        print("creation du customer")
+        create_customer = requests.post(url + customer_endpoint,
+                                        json={"firstname": str(firstname_index), "lastname": str(lastname_index)})
+        if create_customer:
+            print("Create Customer => Success!")
+            new_customer = create_customer.json()
+            customers_list.append(new_customer)
+        else:
+            raise Exception(f"Non-success status code: {create_customer.status_code}")
+    # hotel process
+    hotel = customers_file['hotel'][ind]
+    if findHotel(hotel, hotels_list):
+        print(hotel + " trouve!")
+    else:
+        print(hotel + " non trouve!")
+        print("creation du hotel")
+        create_hotel = requests.post(url + hotel_endpoint, json={"name": str(hotel)})
+        if create_hotel:
+            print("Create Hotel => Success!")
+            new_hotel = create_hotel.json()
+            hotels_list.append(new_hotel)
+        else:
+            raise Exception(f"Non-success status code: {create_hotel.status_code}")
+    # reservation process
