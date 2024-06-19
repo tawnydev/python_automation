@@ -11,23 +11,23 @@ reservation_endpoint = "/reservations"
 def findCustomer(firstname, lastname, list):
     for c in list:
         if c["firstname"] == firstname and c["lastname"] == lastname:
-            return True
-    return False
+            return c
+    return None
 
 
 def findHotel(name, list):
     for h in list:
         if h["name"] == name:
-            return True
-    return False
+            return h
+    return None
 
 
-def findReservation(firstname, lastname, hotel, chambre, list):
+def findReservation(id_customer, id_hotel, chambre, list):
     for r in list:
-        if r["firstname"] == firstname and r["lastname"] == lastname and r["hotel"] == hotel and r[
+        if r["customer"]["id"] == id_customer and r["hotel"]["id"] == id_hotel and r[
             "chambre"] == chambre:
-            return True
-    return False
+            return r
+    return None
 
 
 ########## script ##########
@@ -68,7 +68,8 @@ for ind in customers_file.index:
     # customer process
     firstname_index = customers_file['customer firstname'][ind]
     lastname_index = customers_file['customer lastname'][ind]
-    if findCustomer(firstname_index, lastname_index, customers_list):
+    current_customer = findCustomer(firstname_index, lastname_index, customers_list)
+    if current_customer is not None:
         print(firstname_index + " trouve!")
     else:
         print(firstname_index + " non trouve!")
@@ -83,7 +84,8 @@ for ind in customers_file.index:
             raise Exception(f"Non-success status code: {create_customer.status_code}")
     # hotel process
     hotel = customers_file['hotel'][ind]
-    if findHotel(hotel, hotels_list):
+    current_hotel = findHotel(hotel, hotels_list)
+    if current_hotel is not None:
         print(hotel + " trouve!")
     else:
         print(hotel + " non trouve!")
@@ -96,3 +98,35 @@ for ind in customers_file.index:
         else:
             raise Exception(f"Non-success status code: {create_hotel.status_code}")
     # reservation process
+    chambre = customers_file['chambre'][ind]
+    opt_spa = False
+    if customers_file['option spa'][ind] == "ok":
+        opt_spa = True
+    opt_petit_dej = False
+    if customers_file['petit dej'][ind] == "ok":
+        opt_spa = True
+    cout_restaurant = 0.0
+    if str() != "nan" and isinstance(customers_file['cout restaurant'][ind],(int,float)):
+        cout_restaurant = float(customers_file['cout restaurant'][ind])
+    current_reservation = findReservation(current_customer["id"], current_hotel["id"], chambre, reservations_list)
+    if current_reservation is not None:
+        print("reservation " + str(chambre) + " dans " + hotel + " pour " + firstname_index + " trouve!")
+    else:
+        print(str(chambre) + " non trouve!")
+        print("creation de la reservation")
+        print({"chambre": int(chambre), "hotel": current_hotel,
+                                                                      "customer": current_customer,
+                                                                      "optionPetitDej": opt_petit_dej,
+                                                                      "optionSpa": opt_spa,
+                                                                      "coutRestaurant": cout_restaurant})
+        create_resa = requests.post(url + reservation_endpoint, json={"chambre": int(chambre), "hotel": current_hotel,
+                                                                      "customer": current_customer,
+                                                                      "optionPetitDej": opt_petit_dej,
+                                                                      "optionSpa": opt_spa,
+                                                                      "coutRestaurant": cout_restaurant})
+        if create_resa:
+            print("Create Reservation => Success!")
+            new_resa = create_resa.json()
+            reservations_list.append(new_resa)
+        else:
+            raise Exception(f"Non-success status code: {create_resa.status_code}")
